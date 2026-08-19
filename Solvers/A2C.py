@@ -130,6 +130,7 @@ class A2C(AbstractSolver):
             # only ONCE at EACH step in    #
             # an episode.                  # 
             ################################
+            pass
 
     def actor_loss(self, advantage, prob):
         """

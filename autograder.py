@@ -525,8 +525,13 @@ class mcis(unittest.TestCase):
         solver = self.results["solver"]
 
         def dummy_behavior_policy(state):
-            action = np.ones((4)) * 0.01 / 3
-            action[state] = 0.99
+            # Deterministic on purpose. A 0.99/0.01 split made the intended
+            # trajectory only 0.99**4 ~= 96% likely, so a correct submission
+            # failed this test roughly 4% of the time. The importance ratio
+            # cancels in the weighted-IS update, so the expected Q values below
+            # are unchanged by making this one-hot.
+            action = np.zeros((4))
+            action[state] = 1
             return action
 
         def dummy_target_policy(state):
@@ -939,7 +944,8 @@ class dqn(unittest.TestCase):
         solver = self.results["solver"]
         orig_model = deepcopy(solver.model)
         dummy_model_path = "TestData/test_model_dqn.pth"
-        dummy_model = torch.load(dummy_model_path, weights_only=False)
+        dummy_model = deepcopy(solver.model)
+        dummy_model.load_state_dict(torch.load(dummy_model_path))
         patch(solver, "model", dummy_model)
         # Test 1
         dummy_state = torch.tensor(
@@ -968,7 +974,8 @@ class dqn(unittest.TestCase):
         solver = self.results["solver"]
         orig_model = deepcopy(solver.model)
         dummy_model_path = "TestData/test_model_dqn.pth"
-        dummy_model = torch.load(dummy_model_path, weights_only=False)
+        dummy_model = deepcopy(solver.model)
+        dummy_model.load_state_dict(torch.load(dummy_model_path))
         patch(solver, "model", dummy_model)
         patch(solver, "target_model", dummy_model)
         # Test 1
@@ -1319,8 +1326,12 @@ class ddpg(unittest.TestCase):
 
         results = run_main(command_str)
         solver = results["solver"]
-        patch(solver, "actor_critic", torch.load('TestData/test_ddpg_ac_lunar_lander.pth', weights_only=False))
-        patch(solver, "target_actor_critic", torch.load('TestData/test_ddpg_ac_target_lunar_lander.pth', weights_only=False))
+        actor_critic_weights = deepcopy(solver.actor_critic)
+        actor_critic_weights.load_state_dict(torch.load('TestData/test_ddpg_ac_lunar_lander.pth'))
+        patch(solver, "actor_critic", actor_critic_weights)
+        target_actor_critic_weights = deepcopy(solver.target_actor_critic)
+        target_actor_critic_weights.load_state_dict(torch.load('TestData/test_ddpg_ac_target_lunar_lander.pth'))
+        patch(solver, "target_actor_critic", target_actor_critic_weights)
         states = torch.Tensor(np.load('TestData/ddpg_states_lander.npy'))
         rewards = torch.Tensor(np.load('TestData/ddpg_rewards_lander.npy'))
         dones = torch.Tensor(np.load('TestData/ddpg_dones_lander.npy'))
@@ -1343,7 +1354,9 @@ class ddpg(unittest.TestCase):
         )
         results = run_main(command_str)
         solver = results["solver"]
-        patch(solver, "actor_critic", torch.load('TestData/test_ddpg_ac_lunar_lander.pth', weights_only=False))
+        actor_critic_weights = deepcopy(solver.actor_critic)
+        actor_critic_weights.load_state_dict(torch.load('TestData/test_ddpg_ac_lunar_lander.pth'))
+        patch(solver, "actor_critic", actor_critic_weights)
         states = torch.Tensor(np.load('TestData/ddpg_states_lander.npy'))
         target = np.load("TestData/test_ddpg_pi_loss_lander.npy")
         self.assertTrue(

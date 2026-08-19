@@ -138,7 +138,7 @@ class Reinforce(AbstractSolver):
             # Run update_model() only ONCE #
             # at the END of an episode.    #
             ################################
-
+            pass
 
     def pg_loss(self, advantage, prob):
         """

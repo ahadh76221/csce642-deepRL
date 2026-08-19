@@ -220,7 +220,7 @@ class DDPG(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            
+            pass
 
     def q_loss(self, current_q, target_q):
         """

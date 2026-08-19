@@ -64,6 +64,7 @@ class Sarsa(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
+            return -1
 
         return policy_fn
 
