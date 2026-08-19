@@ -150,6 +150,7 @@ class OffPolicyMC(MonteCarlo):
             self.options.steps: steps per episode
             self.behavior_policy(state): returns a soft policy which is the
                 behavior policy (act according to this policy)
+            self.sample(probs): samples an action from a probability vector
             episode.append((state, action, reward)): memorize a transition
             self.options.gamma: Gamma discount factor.
             new_state, reward, done, _ = self.step(action): To advance one step in the environment

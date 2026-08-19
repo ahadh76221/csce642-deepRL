@@ -1,0 +1,20 @@
+# Conda environment for CSCE-642: Deep Reinforcement Learning.
+#
+# Replaces the previous environment_linux.yml / environment_mac.yml, which were
+# full conda exports with build-string pins (e.g. py39h6a678d5_0) that only ever
+# resolved on the one machine they were generated on.
+#
+#   conda env create -f environment.yml
+#   conda activate csce642
+#
+# Box2D needs SWIG on the system; see README.md.
+
+name: csce642
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.11
+  - swig
+  - pip
+  - pip:
+      - -r requirements.txt

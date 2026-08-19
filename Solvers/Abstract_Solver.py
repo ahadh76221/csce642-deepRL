@@ -9,6 +9,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 import gymnasium as gym
+import numpy as np
 import time
 
 
@@ -23,6 +24,21 @@ class AbstractSolver(ABC):
 
     def init_stats(self):
         self.statistics[1:] = [0] * (len(Statistics) - 1)
+
+    def sample(self, action_probs):
+        """
+        Sample a single action from a vector of action probabilities.
+
+        Provided for you. Throughout this codebase an epsilon-greedy (or any
+        stochastic) policy returns pi(.|s) as a probability vector, one entry
+        per action. Use this helper when you need to act on that vector.
+
+        Param:
+            action_probs: a numpy array of length nA summing to 1
+        Return:
+            action: an int index sampled according to 'action_probs'
+        """
+        return int(np.random.choice(len(action_probs), p=action_probs))
 
     def step(self, action):
         """
@@ -53,11 +69,14 @@ class AbstractSolver(ABC):
         except:
             domain = self.env.name
         if domain == "CartPole-v1":
+            # Gymnasium >=1.0 removed attribute pass-through on wrappers, so the
+            # env's own thresholds must be read off .unwrapped.
+            base = self.env.unwrapped
             x, x_dot, theta, theta_dot = state
-            r1 = (self.env.x_threshold - abs(x)) / self.env.x_threshold - 0.8
+            r1 = (base.x_threshold - abs(x)) / base.x_threshold - 0.8
             r2 = (
-                self.env.theta_threshold_radians - abs(theta)
-            ) / self.env.theta_threshold_radians - 0.5
+                base.theta_threshold_radians - abs(theta)
+            ) / base.theta_threshold_radians - 0.5
             return r1 + r2
         return 0
 

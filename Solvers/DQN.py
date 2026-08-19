@@ -172,6 +172,7 @@ class DQN(AbstractSolver):
 
         Use:
             self.epsilon_greedy(state): return probabilities of actions.
+            self.sample(probs): samples an action from a probability vector
             np.random.choice(array, p=prob): sample an element from 'array' based on their corresponding
                 probabilites 'prob'.
             self.memorize(state, action, reward, next_state, done): store the transition in the replay buffer

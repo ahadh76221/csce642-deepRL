@@ -27,6 +27,22 @@ def run_main(command_str):
     return results
 
 
+def patch(solver, name, value):
+    """Replace solver.<name>, failing loudly if <name> does not already exist.
+
+    Without this guard a mis-spelled attribute is silently created as a new
+    attribute that nothing reads, so the test goes on running against the
+    student's real method instead of the fixture.
+    """
+    if not hasattr(solver, name):
+        raise AttributeError(
+            "autograder bug: '{}' has no attribute '{}'".format(
+                type(solver).__name__, name
+            )
+        )
+    setattr(solver, name, value)
+
+
 def l2_distance_bounded(v1, v2, bound):
     distance = np.mean((v1 - v2) ** 2)
     return True if distance < bound else False
@@ -62,7 +78,7 @@ class vi(unittest.TestCase):
                 0.8549790393954977,
             ]
         )
-        solver.V = v
+        patch(solver, "V", v)
 
     def test_train_episode(self):
         solver = self.results["solver"]
@@ -173,7 +189,7 @@ class avi(unittest.TestCase):
                 0.8549790393954977,
             ]
         )
-        solver.V = v
+        patch(solver, "V", v)
 
     def test_train_episode_1(self):
         solver = self.results["solver"]
@@ -336,7 +352,7 @@ class pi(unittest.TestCase):
                 0.0,
             ]
         )
-        solver.policy_eval = dummy_policy_eval
+        patch(solver, "policy_eval", dummy_policy_eval)
         policy = np.argmax(solver.policy, axis=1).tolist()
         expected_policy = [0, 3, 3, 2, 0, 0, 0, 2, 0, 0, 1, 2, 0, 1, 1, 0]
         self.assertEqual(
@@ -453,9 +469,9 @@ class mc(unittest.TestCase):
                 return (23, 2, False), -1, True, ""
 
         solver = self.results["solver"]
-        solver.policy = dummy_policy
+        patch(solver, "policy", dummy_policy)
         solver.env.reset = dummy_reset
-        solver.step = dummy_step
+        patch(solver, "step", dummy_step)
         solver.train_episode()
         self.assertEqual(
             list(solver.Q[(14, 10, False)]),
@@ -526,10 +542,10 @@ class mcis(unittest.TestCase):
             else:
                 return action + 1, -1, False, ""
 
-        solver.target_policy = dummy_target_policy
-        solver.behavior_policy = dummy_behavior_policy
+        patch(solver, "target_policy", dummy_target_policy)
+        patch(solver, "behavior_policy", dummy_behavior_policy)
         solver.env.reset = dummy_reset
-        solver.step = dummy_step
+        patch(solver, "step", dummy_step)
         solver.train_episode()
         self.assertTrue(
             l2_distance_bounded(solver.Q[0], np.array([-1.39, 0, 0, 0]), 1e-12),
@@ -582,9 +598,9 @@ class ql(unittest.TestCase):
         command_str = "-s ql -d Blackjack -e 0 -a 0.5 -g 0.3 -p 0.1 --no-plots"
         self.results = run_main(command_str)
 
-    def test_make_epsilon_greedy_policy(self):
+    def test_epsilon_greedy(self):
         solver = self.results["solver"]
-        policy = solver.epsilon_greedy_action
+        policy = solver.epsilon_greedy
         solver.Q[0][0] = 0.3
         solver.Q[0][1] = 0.1
         np.random.seed(10)
@@ -594,7 +610,7 @@ class ql(unittest.TestCase):
         # test = [(sum([policy(0) for x in range(1000)])) for y in range(100)]
         self.assertTrue(
             l2_distance_bounded(np.array([0.95, 0.05]), policy(0), 1e-8),
-            "`make_epsilon_greedy_policy' returns unexpected policy",
+            "`epsilon_greedy' returns unexpected policy",
         )
         self.__class__.points += 2
 
@@ -615,15 +631,16 @@ class ql(unittest.TestCase):
             predict_action == 1, "`create_greedy_policy' returns unexpected policy"
         )
         self.__class__.points += 1
-        solver.Q = old_Q
+        patch(solver, "Q", old_Q)
 
     def test_train_episode(self):
         def dummy_policy(state):
-
+            probs = np.zeros(2)
             if state == (14, 10, False):
-                return 0
+                probs[0] = 1
             else:
-                return 1
+                probs[1] = 1
+            return probs
 
         def dummy_reset():
             return (14, 10, False), {"prob": 1}
@@ -636,9 +653,9 @@ class ql(unittest.TestCase):
                 return (23, 2, False), -1, True, ""
 
         solver = self.results["solver"]
-        solver.make_epsilong_greedy_policy = dummy_policy
+        patch(solver, "epsilon_greedy", dummy_policy)
         solver.env.reset = dummy_reset
-        solver.step = dummy_step
+        patch(solver, "step", dummy_step)
         solver.train_episode()
         self.assertEqual(
             list(solver.Q[(14, 10, False)]),
@@ -647,7 +664,7 @@ class ql(unittest.TestCase):
         )
         self.assertEqual(
             list(solver.Q[(14, 9, False)]),
-            [-0.5, -0.5],
+            [0, -0.5],
             "`train_episode' function return unexpected outputs",
         )
         self.assertEqual(
@@ -693,9 +710,9 @@ class sarsa(unittest.TestCase):
         command_str = "-s sarsa -d WindyGridworld -e 0 -a 0.5 -g 0.3 -p 0.1 --no-plots"
         self.results = run_main(command_str)
 
-    def test_make_epsilon_greedy_policy(self):
+    def test_epsilon_greedy(self):
         solver = self.results["solver"]
-        policy = solver.epsilon_greedy_action
+        policy = solver.epsilon_greedy
         old_Q = deepcopy(solver.Q)
         solver.Q[0][0] = 0.3
         solver.Q[0][1] = 0.1
@@ -705,9 +722,9 @@ class sarsa(unittest.TestCase):
             l2_distance_bounded(
                 np.array([0.925, 0.025, 0.025, 0.025]), policy(0), 1e-8
             ),
-            "`make_epsilon_greedy_policy' returns unexpected policy",
+            "`epsilon_greedy' returns unexpected policy",
         )
-        solver.Q = old_Q
+        patch(solver, "Q", old_Q)
         self.__class__.points += 2
 
     def test_create_greedy_policy(self):
@@ -730,7 +747,7 @@ class sarsa(unittest.TestCase):
         self.assertTrue(
             predict_action == 1, "`create_greedy_policy' returns unexpected policy"
         )
-        solver.Q = old_Q
+        patch(solver, "Q", old_Q)
         self.__class__.points += 1
 
     def test_train_episode(self):
@@ -749,9 +766,9 @@ class sarsa(unittest.TestCase):
                 return action + 1, -1, False, ""
 
         solver = self.results["solver"]
-        solver.epsilon_greedy_action = dummy_policy
+        patch(solver, "epsilon_greedy", dummy_policy)
         solver.env.reset = dummy_reset
-        solver.step = dummy_step
+        patch(solver, "step", dummy_step)
         solver.train_episode()
         solver.train_episode()
         self.assertEqual(
@@ -824,7 +841,7 @@ class aql(unittest.TestCase):
         orig_model = deepcopy(solver.estimator)
         dummy_model_path = "TestData/test_model_aql.pkl"
         dummy_model = joblib.load(dummy_model_path)
-        solver.estimator = dummy_model
+        patch(solver, "estimator", dummy_model)
         # Test 1
         dummy_state = np.array([-1.0, 0.0])
         self.assertEqual(
@@ -840,14 +857,14 @@ class aql(unittest.TestCase):
             "`epsilon_greedy' returns unexpected policy",
         )
         self.__class__.points += 2
-        solver.model = orig_model
+        patch(solver, "estimator", orig_model)
 
     def test_epsilon_greedy_policy(self):
         solver = self.results["solver"]
         orig_model = deepcopy(solver.estimator)
         dummy_model_path = "TestData/test_model_aql.pkl"
         dummy_model = joblib.load(dummy_model_path)
-        solver.estimator = dummy_model
+        patch(solver, "estimator", dummy_model)
         # Test 1
         dummy_state = np.array([-1.0, 0.0])
         self.assertTrue(
@@ -865,7 +882,7 @@ class aql(unittest.TestCase):
             "`epsilon_greedy' returns unexpected policy",
         )
         self.__class__.points += 3
-        solver.model = orig_model
+        patch(solver, "estimator", orig_model)
 
     def test_mountain_car_reward(self):
         command_str = "-s aql -d MountainCar-v0 -e 100 -g 1.0 -p 0.2 -r 100 --no-plots"
@@ -915,15 +932,15 @@ class dqn(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        command_str = "-s dqn -t 1000 -d LunarLander-v2 -e 0 -a 0.01 -g 0.99 -p 0.1 -P 0.1 -c 1.0 -m 2000 -r 100 -N 100 -b 64 -l [128,128] --no-plots"
+        command_str = "-s dqn -t 1000 -d LunarLander-v3 -e 0 -a 0.01 -g 0.99 -p 0.1 -P 0.1 -c 1.0 -m 2000 -r 100 -N 100 -b 64 -l [128,128] --no-plots"
         self.results = run_main(command_str)
 
     def test_epsilon_greedy(self):
         solver = self.results["solver"]
         orig_model = deepcopy(solver.model)
         dummy_model_path = "TestData/test_model_dqn.pth"
-        dummy_model = torch.load(dummy_model_path)
-        solver.model = dummy_model
+        dummy_model = torch.load(dummy_model_path, weights_only=False)
+        patch(solver, "model", dummy_model)
         # Test 1
         dummy_state = torch.tensor(
             [-1.6034, -1.1659, 0.5953, 1.2609, 0.7732, -0.3623, 1.7237, 0.9790],
@@ -945,15 +962,15 @@ class dqn(unittest.TestCase):
             "`epsilon_greedy' returns unexpected policy",
         )
         self.__class__.points += 2
-        solver.model = orig_model
+        patch(solver, "model", orig_model)
 
     def test_compute_target_q_values(self):
         solver = self.results["solver"]
         orig_model = deepcopy(solver.model)
         dummy_model_path = "TestData/test_model_dqn.pth"
-        dummy_model = torch.load(dummy_model_path)
-        solver.model = dummy_model
-        solver.target_model = dummy_model
+        dummy_model = torch.load(dummy_model_path, weights_only=False)
+        patch(solver, "model", dummy_model)
+        patch(solver, "target_model", dummy_model)
         # Test 1
         dummy_reward = torch.tensor([10], dtype=torch.float32)
         dummy_next_state = torch.tensor(
@@ -989,7 +1006,7 @@ class dqn(unittest.TestCase):
             "`compute_target_values' returns unexpected values",
         )
         self.__class__.points += 3
-        solver.model = orig_model
+        patch(solver, "model", orig_model)
 
     def test_cartpole_reward(self):
         """ """
@@ -1291,19 +1308,19 @@ class ddpg(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         command_str = (
-            "-s ddpg -t 1000 -d HalfCheetah-v4 -e 0 -a 0.001 -g 0.99 -l [256,256] -m 1000000 -b 100 --no-plots"
+            "-s ddpg -t 1000 -d HalfCheetah-v5 -e 0 -a 0.001 -g 0.99 -l [256,256] -m 1000000 -b 100 --no-plots"
         )
     
     def test_compute_target_values(self):
        
         command_str = (
-            "-s ddpg -t 1000 -d LunarLanderContinuous-v2 -e 0 -a 0.001 -g 0.99 -l [64,64] -b 100 --no-plots"
+            "-s ddpg -t 1000 -d LunarLanderContinuous-v3 -e 0 -a 0.001 -g 0.99 -l [64,64] -b 100 --no-plots"
         )
 
         results = run_main(command_str)
         solver = results["solver"]
-        solver.actor_critic = torch.load('TestData/test_ddpg_ac_lunar_lander.pth')
-        solver.target_actor_critic = torch.load('TestData/test_ddpg_ac_target_lunar_lander.pth')
+        patch(solver, "actor_critic", torch.load('TestData/test_ddpg_ac_lunar_lander.pth', weights_only=False))
+        patch(solver, "target_actor_critic", torch.load('TestData/test_ddpg_ac_target_lunar_lander.pth', weights_only=False))
         states = torch.Tensor(np.load('TestData/ddpg_states_lander.npy'))
         rewards = torch.Tensor(np.load('TestData/ddpg_rewards_lander.npy'))
         dones = torch.Tensor(np.load('TestData/ddpg_dones_lander.npy'))
@@ -1322,11 +1339,11 @@ class ddpg(unittest.TestCase):
     def test_pi_loss(self):
        
         command_str = (
-            "-s ddpg -t 1000 -d LunarLanderContinuous-v2 -e 1 -a 0.001 -g 0.99 -l [64,64] -b 100 --no-plots"
+            "-s ddpg -t 1000 -d LunarLanderContinuous-v3 -e 1 -a 0.001 -g 0.99 -l [64,64] -b 100 --no-plots"
         )
         results = run_main(command_str)
         solver = results["solver"]
-        solver.actor_critic = torch.load('TestData/test_ddpg_ac_lunar_lander.pth')
+        patch(solver, "actor_critic", torch.load('TestData/test_ddpg_ac_lunar_lander.pth', weights_only=False))
         states = torch.Tensor(np.load('TestData/ddpg_states_lander.npy'))
         target = np.load("TestData/test_ddpg_pi_loss_lander.npy")
         self.assertTrue(
@@ -1341,7 +1358,7 @@ class ddpg(unittest.TestCase):
     
     def test_lander_rewards(self):
         command_str = (
-            "-s ddpg -t 1000 -d LunarLanderContinuous-v2 -e 1000 -a 0.001 -g 0.99 -l [64,64] -b 100 --no-plots"
+            "-s ddpg -t 1000 -d LunarLanderContinuous-v3 -e 1000 -a 0.001 -g 0.99 -l [64,64] -b 100 --no-plots"
         )
         results = run_main(command_str)
         

@@ -14,7 +14,7 @@ import random
 import numpy as np
 import torch
 
-gym.logger.set_level(40)
+gym.logger.min_level = gym.logger.ERROR  # Gymnasium >=1.0 replaced logger.set_level()
 
 if "../" not in sys.path:
     sys.path.append("../")
@@ -192,9 +192,19 @@ def getEnv(domain, render_mode=""):
         return WindyGridworldEnv()
     else:
         try:
-            return gym.make(domain, render_mode=render_mode)
-        except:
-            assert False, "Domain must be a valid (and installed) Gym environment"
+            env = gym.make(domain, render_mode=render_mode)
+            # Gymnasium >=1.0 removed attribute pass-through on wrappers, so a
+            # tabular env's transition model is only reachable via .unwrapped.
+            # Re-expose it so the DP solvers can keep using self.env.P.
+            if not hasattr(env, "P") and hasattr(env.unwrapped, "P"):
+                env.P = env.unwrapped.P
+            return env
+        except Exception as e:
+            raise RuntimeError(
+                f"Could not create domain '{domain}': {type(e).__name__}: {e}\n"
+                "Check the environment id and that its extras are installed "
+                "(e.g. pip install 'gymnasium[box2d]' or 'gymnasium[mujoco]')."
+            ) from e
 
 
 def parse_list(string):

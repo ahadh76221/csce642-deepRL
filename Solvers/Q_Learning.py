@@ -40,7 +40,8 @@ class QLearning(AbstractSolver):
         Use:
             self.env: OpenAI environment.
             self.options.steps: steps per episode
-            self.epsilon_greedy_action(state): returns an epsilon greedy action
+            self.epsilon_greedy(state): returns the epsilon-greedy action probabilities for 'state'
+            self.sample(probs): samples an action from a probability vector
             np.argmax(self.Q[next_state]): action with highest q value
             self.options.gamma: Gamma discount factor.
             self.Q[state][action]: q value for ('state', 'action')
@@ -79,10 +80,13 @@ class QLearning(AbstractSolver):
 
         return policy_fn
 
-    def epsilon_greedy_action(self, state):
+    def epsilon_greedy(self, state):
         """
-        Return an epsilon-greedy action based on the current Q-values and
-        epsilon.
+        Compute the epsilon-greedy action probabilities for 'state', based on
+        the current Q-values and epsilon.
+
+        Note: this returns pi(.|s) as a vector, NOT a sampled action. Use
+        self.sample(probs) when you need to act on it.
 
         Use:
             self.env.action_space.n: size of the action space
@@ -128,8 +132,11 @@ class ApproxQLearning(QLearning):
 
     def epsilon_greedy(self, state):
         """
-        Return an epsilon-greedy action based on the current Q-values and
-        epsilon.
+        Compute the epsilon-greedy action probabilities for 'state', based on
+        the current Q-values and epsilon.
+
+        Note: this returns pi(.|s) as a vector, NOT a sampled action. Use
+        self.sample(probs) when you need to act on it.
 
         Use:
             self.env.action_space.n: size of the action space

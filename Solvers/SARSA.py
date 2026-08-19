@@ -33,7 +33,8 @@ class Sarsa(AbstractSolver):
 
         Use:
             self.env: OpenAI environment.
-            self.epsilon_greedy_action(state): returns an epsilon greedy action
+            self.epsilon_greedy(state): returns the epsilon-greedy action probabilities for 'state'
+            self.sample(probs): samples an action from a probability vector
             self.options.steps: number of steps per episode
             self.options.gamma: Gamma discount factor.
             self.options.alpha: TD learning rate.
@@ -66,10 +67,13 @@ class Sarsa(AbstractSolver):
 
         return policy_fn
 
-    def epsilon_greedy_action(self, state):
+    def epsilon_greedy(self, state):
         """
-        Return an epsilon-greedy action based on the current Q-values and
-        epsilon.
+        Compute the epsilon-greedy action probabilities for 'state', based on
+        the current Q-values and epsilon.
+
+        Note: this returns pi(.|s) as a vector, NOT a sampled action. Use
+        self.sample(probs) when you need to act on it.
 
         Use:
             self.env.action_space.n: the size of the action space
