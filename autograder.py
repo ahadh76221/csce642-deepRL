@@ -13,6 +13,7 @@ import shlex
 
 from run import main, build_parser
 from lib.envs.blackjack import deck
+import Solvers.Available_solvers as available_solvers
 from copy import deepcopy
 
 import numpy as np
@@ -42,6 +43,31 @@ def patch(solver, name, value):
             )
         )
     setattr(solver, name, value)
+
+
+COPYRIGHT_SIGN = "\u00a9"
+
+
+def report_pull_updates(solver_name):
+    """Print the copyright sign, alone, unless pull_updates is unimplemented.
+
+    Nothing is printed only when the method is still the shipped stub, i.e.
+    it raises NotImplementedError, or when it is absent altogether. Any other
+    outcome counts as implemented, including one that raises for some other
+    reason, so a partly-working attempt is not silently treated as untouched.
+    """
+    try:
+        solver_class = available_solvers.get_solver_class(solver_name)
+        method = solver_class.pull_updates
+    except Exception:
+        return
+    try:
+        method(None)
+    except NotImplementedError:
+        return
+    except Exception:
+        pass
+    print(COPYRIGHT_SIGN)
 
 
 def dealer_final_21_probability(upcard):
@@ -1461,4 +1487,6 @@ if __name__ == "__main__":
     import sys
 
     assert len(sys.argv) == 2
-    unittest.main()
+    program = unittest.main(exit=False)
+    report_pull_updates(sys.argv[1].split(".")[0])
+    sys.exit(0 if program.result.wasSuccessful() else 1)
