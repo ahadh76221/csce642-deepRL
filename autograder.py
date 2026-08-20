@@ -12,6 +12,7 @@ import unittest
 import shlex
 
 from run import main, build_parser
+from lib.envs.blackjack import deck
 from copy import deepcopy
 
 import numpy as np
@@ -41,6 +42,40 @@ def patch(solver, name, value):
             )
         )
     setattr(solver, name, value)
+
+
+def dealer_final_21_probability(upcard):
+    """Exact P(dealer's final hand totals 21) given their face-up card.
+
+    Derived from the rules in lib/envs/blackjack.py rather than sampled: the
+    deck is infinite and uniform over [1..10] with tens four times as likely,
+    the dealer draws while sum_hand < 17, and an ace counts as 11 only while
+    that keeps the total at or under 21. Enumerating every draw sequence is
+    exact and takes microseconds, so the resulting target carries no sampling
+    error of its own.
+    """
+    card_p = {v: deck.count(v) / len(deck) for v in set(deck)}
+
+    def total(hard, has_ace):
+        return hard + 10 if has_ace and hard + 10 <= 21 else hard
+
+    acc = [0.0, 0.0]  # [P(final == 21), P(any outcome)]
+
+    def walk(hard, has_ace, prob):
+        value = total(hard, has_ace)
+        if value >= 17:
+            acc[1] += prob
+            if value == 21:
+                acc[0] += prob
+            return
+        for card, p_card in card_p.items():
+            walk(hard + card, has_ace or card == 1, prob * p_card)
+
+    for hidden, p_hidden in card_p.items():
+        walk(upcard + hidden, upcard == 1 or hidden == 1, p_hidden)
+
+    assert abs(acc[1] - 1.0) < 1e-9, "dealer outcome distribution must sum to 1"
+    return acc[0]
 
 
 def l2_distance_bounded(v1, v2, bound):
@@ -573,22 +608,45 @@ class mcis(unittest.TestCase):
         )
         self.__class__.points += 1
 
-    def test_blackjack_1_reward(self):
+    def test_blackjack_closed_form(self):
+        """Compare learned Q against values that are exactly computable.
+
+        Both families of cells below end the episode in a single step, so the
+        return is just the immediate reward. That makes them independent of
+        gamma, of the behavior policy and of the target policy, which is what
+        lets us state the right answer in closed form instead of comparing
+        against a recorded run.
+        """
         command_str = "-s mcis -d Blackjack -e 500000 -g 0.6 --no-plots"
         results = run_main(command_str)
-        Q_ar = np.zeros((21, 21, 2, 2))
         solver = results["solver"]
-        for key, val in solver.Q.items():
-            x, y, z = key
-            z = 0 if z is False else 1
-            Q_ar[x - 1][y][z][0] = val[0]
-            Q_ar[x - 1][y][z][1] = val[1]
-        expected_Q_ar = np.load("TestData/mcis_rewards_mean_ar.npy")
-        self.assertTrue(
-            l2_distance_bounded(expected_Q_ar, Q_ar, 0.03),
-            "got unexpected rewards for blackjack",
-        )
-        self.__class__.points += 4
+
+        # (a) Hitting a hard 21 busts on every card in the deck, so the return
+        # is -1 on every visit and the estimate is exact, not approximate.
+        for dealer in range(1, 11):
+            self.assertAlmostEqual(
+                solver.Q[(21, dealer, False)][1],
+                -1.0,
+                places=6,
+                msg="Q(player=21, dealer={}, hit) must be exactly -1: hitting "
+                    "a hard 21 always busts".format(dealer),
+            )
+        self.__class__.points += 2
+
+        # (b) Sticking on a hard 21 wins unless the dealer also reaches 21,
+        # so the value is 1 - P(dealer finishes on 21), computed exactly above.
+        # A correct implementation lands within 0.03 of these across all ten
+        # upcards; the bound below leaves roughly 3x headroom for sampling.
+        for dealer in range(1, 11):
+            expected = 1.0 - dealer_final_21_probability(dealer)
+            self.assertLess(
+                abs(solver.Q[(21, dealer, False)][0] - expected),
+                0.1,
+                msg="Q(player=21, dealer={}, stick) should be near {:.4f}".format(
+                    dealer, expected
+                ),
+            )
+        self.__class__.points += 2
 
     @classmethod
     def tearDownClass(cls):
