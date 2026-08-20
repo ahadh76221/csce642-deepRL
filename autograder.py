@@ -1372,10 +1372,13 @@ class ddpg(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
+        # Deliberately not run. HalfCheetah costs far too much wall-clock to
+        # grade, so it is left here, along with the *_cheetah fixtures in
+        # TestData/, as a reference command students can run themselves.
         command_str = (
             "-s ddpg -t 1000 -d HalfCheetah-v5 -e 0 -a 0.001 -g 0.99 -l [256,256] -m 1000000 -b 100 --no-plots"
         )
-    
+
     def test_compute_target_values(self):
        
         command_str = (

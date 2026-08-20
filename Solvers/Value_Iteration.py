@@ -59,6 +59,13 @@ class ValueIteration(AbstractSolver):
                 How should this be calculated?
                     look at the value iteration algorithm
                     Ref: Sutton book eq. 4.10.
+
+                Update self.V in place, as eq. 4.10 is written: a state's new
+                value must be visible to the states updated after it within the
+                same sweep. Computing every new value from the old self.V and
+                assigning them all at the end is a different (also valid)
+                algorithm, but it is not the one being graded here.
+
                 Once those values have been updated, that's it for this function/class
         """
 
