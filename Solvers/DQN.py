@@ -191,6 +191,9 @@ class DQN(AbstractSolver):
             ################################
             pass
 
+    def pull_updates(self):
+        raise NotImplementedError
+
     def __str__(self):
         return "DQN"
 

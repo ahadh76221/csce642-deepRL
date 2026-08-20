@@ -56,6 +56,9 @@ class QLearning(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+    def pull_updates(self):
+        raise NotImplementedError
+
     def __str__(self):
         return "Q-Learning"
 
@@ -126,6 +129,9 @@ class ApproxQLearning(QLearning):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+
+    def pull_updates(self):
+        raise NotImplementedError
 
     def __str__(self):
         return "Approx Q-Learning"

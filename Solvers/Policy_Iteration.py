@@ -64,6 +64,9 @@ class PolicyIteration(AbstractSolver):
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)
         self.statistics[Statistics.Steps.value] = -1
 
+    def pull_updates(self):
+        raise NotImplementedError
+
     def __str__(self):
         return "Policy Iteration"
 

@@ -161,6 +161,9 @@ class Reinforce(AbstractSolver):
         ################################
 
 
+    def pull_updates(self):
+        raise NotImplementedError
+
     def __str__(self):
         return "REINFORCE"
 

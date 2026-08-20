@@ -259,6 +259,9 @@ class DDPG(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+    def pull_updates(self):
+        raise NotImplementedError
+
     def __str__(self):
         return "DDPG"
 

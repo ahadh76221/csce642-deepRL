@@ -84,6 +84,9 @@ class ValueIteration(AbstractSolver):
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)
         self.statistics[Statistics.Steps.value] = -1
 
+    def pull_updates(self):
+        raise NotImplementedError
+
     def __str__(self):
         return "Value Iteration"
 
@@ -204,6 +207,9 @@ class AsynchVI(ValueIteration):
         # you can ignore this part
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)
         self.statistics[Statistics.Steps.value] = -1
+
+    def pull_updates(self):
+        raise NotImplementedError
 
     def __str__(self):
         return "Asynchronous VI"

@@ -66,6 +66,9 @@ class MonteCarlo(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+    def pull_updates(self):
+        raise NotImplementedError
+
     def __str__(self):
         return "Monte Carlo"
 
@@ -185,6 +188,9 @@ class OffPolicyMC(MonteCarlo):
             return A
 
         return policy_fn
+
+    def pull_updates(self):
+        raise NotImplementedError
 
     def __str__(self):
         return "MC+IS"
