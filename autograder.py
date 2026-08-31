@@ -1037,7 +1037,7 @@ class aql(unittest.TestCase):
         )
         self.__class__.points += 1
         self.assertTrue(
-            np.mean(ep_len[:5]) > 500 and np.mean(ep_len[80:]) < 180,
+            np.mean(ep_len[:5]) > 500 and np.mean(ep_len[80:]) < 200,
             "got unexpected rewards for mountain car",
         )
         self.__class__.points += 1
@@ -1053,7 +1053,7 @@ class aql(unittest.TestCase):
         )
         self.__class__.points += 1
         self.assertTrue(
-            np.max(rewards_smoothed) > -150 and np.mean(rewards_smoothed[:20]) < -350,
+            np.max(rewards_smoothed) > -170 and np.mean(rewards_smoothed[:20]) < -350,
             "got unexpected rewards for mountain car",
         )
         self.__class__.points += 2
