@@ -106,8 +106,8 @@ def build_parser():
         "--seed",
         type="int",
         dest="seed",
-        default=random.randint(0, 9999999999),
-        help="Seed integer for random stream",
+        default=None,
+        help="Seed integer for the random stream. Omit for an unseeded run.",
     )
     parser.add_option(
         "-g",
@@ -247,8 +247,24 @@ def main(options):
         ) as result_file:
             result_file.write(AbstractSolver.get_out_header())
 
-    random.seed(options.seed)
+    # With -r, seed every generator the solvers actually draw from, not just
+    # Python's `random`. The approximate-Q Estimator draws 10,000
+    # observation_space samples and fits four RBFSamplers on numpy's global RNG
+    # and on the space's own RNG, and it calls env.reset() unseeded while
+    # building those regressors, so seeding `random` alone left -r runs
+    # irreproducible. Without -r, seed nothing, so a caller that seeded the
+    # generators itself before calling main() keeps its own seeding.
+    # numpy's legacy global RNG only accepts a seed in [0, 2**32), so fold the
+    # value into range first.
+    seed = None if options.seed is None else int(options.seed) % (2**32)
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
     env = getEnv(options.domain)
+    if seed is not None:
+        env.observation_space.seed(seed)
+        env.action_space.seed(seed)
+        env.reset(seed=seed)
     env._max_episode_steps = options.steps + 1  # suppress truncation
     # if options.domain == "FlappyBird-v0":
     #     eval_env = env

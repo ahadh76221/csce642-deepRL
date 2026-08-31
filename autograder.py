@@ -104,6 +104,28 @@ def dealer_final_21_probability(upcard):
     return acc[0]
 
 
+def assert_close(test_case, actual, expected, message, tolerance=1e-6):
+    """Compare floats, or equal-length sequences of floats, within a tolerance.
+
+    Accumulated rewards and incremental value updates are summed in different
+    orders by different but equally correct implementations, so their last bits
+    differ: -26.24 and -26.239999999999995 are the same answer, and exact
+    equality rejects one of them arbitrarily. The tolerance below is still many
+    orders of magnitude tighter than any plausible mistake in the algorithm.
+
+    Comparisons of action indices stay exact and do not use this.
+    """
+    actual_values = np.atleast_1d(np.asarray(actual, dtype=float))
+    expected_values = np.atleast_1d(np.asarray(expected, dtype=float))
+    test_case.assertEqual(
+        actual_values.shape, expected_values.shape, "{}: wrong shape".format(message)
+    )
+    test_case.assertTrue(
+        np.allclose(actual_values, expected_values, rtol=0, atol=tolerance),
+        "{}: expected {}, got {}".format(message, expected, actual),
+    )
+
+
 def l2_distance_bounded(v1, v2, bound):
     distance = np.mean((v1 - v2) ** 2)
     return True if distance < bound else False
@@ -190,8 +212,11 @@ class vi(unittest.TestCase):
     def test_grid_world_1_reward(self):
         episode_rewards = self.results["stats"].episode_rewards[-1]
         expected_reward = -26.24
-        self.assertEqual(
-            expected_reward, episode_rewards, "got unexpected rewards for gridworld"
+        assert_close(
+            self,
+            episode_rewards,
+            expected_reward,
+            "got unexpected rewards for gridworld",
         )
         self.__class__.points += 1
 
@@ -200,8 +225,11 @@ class vi(unittest.TestCase):
         results = run_main(command_str)
         episode_rewards = results["stats"].episode_rewards[-1]
         expected_reward = -18.64
-        self.assertEqual(
-            expected_reward, episode_rewards, "got unexpected rewards for gridworld"
+        assert_close(
+            self,
+            episode_rewards,
+            expected_reward,
+            "got unexpected rewards for gridworld",
         )
         self.__class__.points += 1
 
@@ -318,8 +346,11 @@ class avi(unittest.TestCase):
     def test_grid_world_reward(self):
         episode_rewards = self.results["stats"].episode_rewards[-1]
         expected_reward = -20
-        self.assertEqual(
-            expected_reward, episode_rewards, "got unexpected rewards for grid world"
+        assert_close(
+            self,
+            episode_rewards,
+            expected_reward,
+            "got unexpected rewards for grid world",
         )
         self.__class__.points += 1
 
@@ -446,8 +477,11 @@ class pi(unittest.TestCase):
     def test_grid_world_1_reward(self):
         episode_rewards = self.results["stats"].episode_rewards[-1]
         expected_reward = -26.24
-        self.assertEqual(
-            expected_reward, episode_rewards, "got unexpected rewards for grid world"
+        assert_close(
+            self,
+            episode_rewards,
+            expected_reward,
+            "got unexpected rewards for grid world",
         )
         self.__class__.points += 1
 
@@ -456,8 +490,11 @@ class pi(unittest.TestCase):
         results = run_main(command_str)
         episode_rewards = results["stats"].episode_rewards[-1]
         expected_reward = -18.64
-        self.assertEqual(
-            expected_reward, episode_rewards, "got unexpected rewards for grid world"
+        assert_close(
+            self,
+            episode_rewards,
+            expected_reward,
+            "got unexpected rewards for grid world",
         )
         self.__class__.points += 1
 
@@ -534,17 +571,20 @@ class mc(unittest.TestCase):
         solver.env.reset = dummy_reset
         patch(solver, "step", dummy_step)
         solver.train_episode()
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[(14, 10, False)]),
             [-1.9, 0],
             "`train_episode' function return unexpected outputs",
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[(14, 9, False)]),
             [0, -1],
             "`train_episode' function return unexpected outputs",
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[(23, 2, False)]),
             [0, 0],
             "`train_episode' function return unexpected outputs",
@@ -746,17 +786,20 @@ class ql(unittest.TestCase):
         solver.env.reset = dummy_reset
         patch(solver, "step", dummy_step)
         solver.train_episode()
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[(14, 10, False)]),
             [-0.5, 0],
             "`train_episode' function return unexpected outputs",
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[(14, 9, False)]),
             [0, -0.5],
             "`train_episode' function return unexpected outputs",
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[(23, 2, False)]),
             [0, 0],
             "`train_episode' function return unexpected outputs",
@@ -860,22 +903,26 @@ class sarsa(unittest.TestCase):
         patch(solver, "step", dummy_step)
         solver.train_episode()
         solver.train_episode()
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[0]),
             [-0.825, 0, 0, 0],
             "`train_episode' function return unexpected outputs",
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[1]),
             [0, -0.825, 0, 0],
             "`train_episode' function return unexpected outputs",
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[2]),
             [0, 0, -0.75, 0],
             "`train_episode' function return unexpected outputs",
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.Q[3]),
             [0, 0, 0, 0],
             "`train_episode' function return unexpected outputs",
@@ -1036,7 +1083,8 @@ class dqn(unittest.TestCase):
             [-1.6034, -1.1659, 0.5953, 1.2609, 0.7732, -0.3623, 1.7237, 0.9790],
             dtype=torch.float32,
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.epsilon_greedy(dummy_state)),
             [0.025, 0.925, 0.025, 0.025],
             "`epsilon_greedy' returns unexpected policy",
@@ -1046,7 +1094,8 @@ class dqn(unittest.TestCase):
             [-2.1429, 0.8679, 0.2397, -0.5396, 0.3134, 0.5916, -1.1758, 0.0649],
             dtype=torch.float32,
         )
-        self.assertEqual(
+        assert_close(
+            self,
             list(solver.epsilon_greedy(dummy_state)),
             [0.025, 0.025, 0.025, 0.925],
             "`epsilon_greedy' returns unexpected policy",
@@ -1089,7 +1138,8 @@ class dqn(unittest.TestCase):
         )
         dummy_next_state = dummy_next_state.reshape(1,-1)
         dummy_done = torch.tensor([1], dtype=torch.float32)
-        self.assertEqual(
+        assert_close(
+            self,
             solver.compute_target_values(dummy_next_state, dummy_reward, dummy_done).reshape(-1)
             .detach()
             .item(),
