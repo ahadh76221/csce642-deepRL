@@ -208,11 +208,19 @@ class AsynchVI(ValueIteration):
         # Update the value function. Ref: Sutton book eq. 4.10. #
         #########################################################
 
-        for each_state in range(self.env.observation_space.n):
-           
-            self.V[each_state] = max(self.one_step_lookahead(each_state))
+        # Pop state with highest priority from the queue
+        state = self.pq.pop()
 
+        # Calculate new value for that state using one_step_lookahead func
+        self.V[state] = max(self.one_step_lookahead(state))
 
+        # Reprioritize the state's predecessors in the queue
+        for p in self.pred.get(state, set()):
+            # Compute p's own priority the same way __init__ did, using p's current V and p's one_step_lookahead
+            A = self.one_step_lookahead(p)
+            best_action_value = np.max(A)
+            priority = -abs(self.V[p] - best_action_value)
+            self.pq.update(p, priority)
 
         # you can ignore this part
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)
