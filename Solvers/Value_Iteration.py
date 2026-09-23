@@ -9,7 +9,6 @@
 import numpy as np
 import heapq
 from Solvers.Abstract_Solver import AbstractSolver, Statistics
-import random
 
 
 class ValueIteration(AbstractSolver):
