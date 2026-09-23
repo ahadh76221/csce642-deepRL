@@ -86,7 +86,7 @@ class ValueIteration(AbstractSolver):
         self.statistics[Statistics.Steps.value] = -1
 
     def pull_updates(self):
-        return "&copy;"
+        raise NotImplementedError
 
     def __str__(self):
         return "Value Iteration"
