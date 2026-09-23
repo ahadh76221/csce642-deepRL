@@ -9,6 +9,7 @@
 import numpy as np
 import heapq
 from Solvers.Abstract_Solver import AbstractSolver, Statistics
+import random
 
 
 class ValueIteration(AbstractSolver):
@@ -78,14 +79,14 @@ class ValueIteration(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            pass
+            self.V[each_state] = max(self.one_step_lookahead(each_state))
 
         # Dont worry about this part
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)
         self.statistics[Statistics.Steps.value] = -1
 
     def pull_updates(self):
-        raise NotImplementedError
+        return "&copy;"
 
     def __str__(self):
         return "Value Iteration"
@@ -151,7 +152,12 @@ class ValueIteration(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            
+
+            actions_values = list(self.one_step_lookahead(state))
+            max_value = max(actions_values)
+
+            return actions_values.index(max_value)
+
 
         return policy_fn
 
