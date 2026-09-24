@@ -57,7 +57,12 @@ class PolicyIteration(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            pass
+            # Round before argmax: repeated np.linalg.solve calls introduce tiny
+            # float noise that can break a true tie (e.g. -2.71 vs
+            # -2.7100000000000004), causing a non-lowest-index action to win
+            # a tie it shouldn't.
+            action = np.argmax(np.round(self.one_step_lookahead(s), 9))
+            self.policy[s] = np.eye(self.env.action_space.n)[action]
 
         # In DP methods we don't interact with the environment so we will set the reward to be the sum of state values
         # and the number of steps to -1 representing an invalid value
@@ -106,6 +111,25 @@ class PolicyIteration(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+
+
+        # V = R_pi + gamma * P_pi @ V      (P_pi[s, s'] = prob of s' under the *policy's* action)
+        # Rearranging:
+        # R_pi = V - gamma * P_pi @ V
+        # R_pi = (I - gamma * P_pi) @ V where I is the identity matrix
+
+        num_states = self.env.observation_space.n
+        A = np.eye(num_states)
+        b = np.zeros(num_states)
+
+        for state in range(num_states):
+            action = np.argmax(self.policy[state, :])
+            for prob, next_state, reward, done in self.env.P[state][action]:
+                A[state, next_state] -= self.options.gamma * prob
+                b[state] += prob * reward
+
+        # Solve R_pi = (I - gamma * P_pi) @ V
+        self.V = np.linalg.solve(A, b)
 
     def create_greedy_policy(self):
         """
