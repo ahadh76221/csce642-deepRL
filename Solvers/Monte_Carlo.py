@@ -66,6 +66,16 @@ class MonteCarlo(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+        for i in range(self.options.steps):
+            probs = self.policy(state)
+            action = np.random.choice(np.arange(len(probs)), p=probs)
+            next_state, reward, done, _ = self.step(action)
+            episode.append((state, action, reward))
+            state = next_state
+            if done:
+                break
+
+
     def pull_updates(self):
         raise NotImplementedError
 
@@ -88,12 +98,20 @@ class MonteCarlo(AbstractSolver):
 
         """
         nA = self.env.action_space.n
+        epsilon = self.options.epsilon
 
         def policy_fn(observation):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            return None
+
+            # Every action in the soft-policy is initialized as epsilon/nA;
+            # The greedy action gets the remaining 1 - epsilon on top (Sutton & Barto, Sec. 5.4)
+            optimal_action = np.argmax(self.Q[observation])
+            policy = np.full(nA, epsilon/nA)
+            policy[optimal_action] += 1 - epsilon
+
+            return policy
 
         return policy_fn
 
@@ -150,7 +168,7 @@ class OffPolicyMC(MonteCarlo):
         Run a single episode of Monte Carlo Control Off-Policy Control using Weighted Importance Sampling.
 
         Use:
-            elf.env: OpenAI environment.
+            self.env: OpenAI environment.
             self.options.steps: steps per episode
             self.behavior_policy(state): returns a soft policy which is the
                 behavior policy (act according to this policy)
