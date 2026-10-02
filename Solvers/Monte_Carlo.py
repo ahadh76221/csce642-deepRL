@@ -88,7 +88,7 @@ class MonteCarlo(AbstractSolver):
             G = discount_factor * G + episode[t][2]
             curr_state = episode[t][0]
             curr_action = episode[t][1]
-            if (curr_state, curr_action) not in state_action_pairs[:t]: # If this current state-action pair doesn't exist in a previous episode step
+            if (curr_state, curr_action) not in state_action_pairs[:t]: # First-visit: only update if this pair doesn't appear earlier in the episode
                 self.returns_sum[(curr_state, curr_action)] += G
                 self.returns_count[(curr_state, curr_action)] += 1
                 self.Q[curr_state][curr_action] = self.returns_sum[(curr_state, curr_action)] / self.returns_count[(curr_state, curr_action)]
