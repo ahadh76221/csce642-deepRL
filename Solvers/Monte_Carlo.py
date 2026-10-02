@@ -75,6 +75,24 @@ class MonteCarlo(AbstractSolver):
             if done:
                 break
 
+        # Update Q-function
+        G = 0
+        state_action_pairs = []
+
+        # Collect the state and action pairs for the episode
+        for j in range(len(episode)):
+            state_action_pairs.append((episode[j][0], episode[j][1]))
+
+        # Loop over each step in episode in reverse, t = T-1, T-2, ... 0
+        for t in range(len(episode) - 1, -1, -1):
+            G = discount_factor * G + episode[t][2]
+            curr_state = episode[t][0]
+            curr_action = episode[t][1]
+            if (curr_state, curr_action) not in state_action_pairs[:t]: # If this current state-action pair doesn't exist in a previous episode step
+                self.returns_sum[(curr_state, curr_action)] += G
+                self.returns_count[(curr_state, curr_action)] += 1
+                self.Q[curr_state][curr_action] = self.returns_sum[(curr_state, curr_action)] / self.returns_count[(curr_state, curr_action)]
+
 
     def pull_updates(self):
         raise NotImplementedError
@@ -131,7 +149,7 @@ class MonteCarlo(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            return -1
+            return np.argmax(self.Q[state])
 
         return policy_fn
 
