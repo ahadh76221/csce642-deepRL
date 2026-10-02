@@ -85,13 +85,12 @@ class MonteCarlo(AbstractSolver):
 
         # Loop over each step in episode in reverse, t = T-1, T-2, ... 0
         for t in range(len(episode) - 1, -1, -1):
-            G = discount_factor * G + episode[t][2]
-            curr_state = episode[t][0]
-            curr_action = episode[t][1]
-            if (curr_state, curr_action) not in state_action_pairs[:t]: # First-visit: only update if this pair doesn't appear earlier in the episode
-                self.returns_sum[(curr_state, curr_action)] += G
-                self.returns_count[(curr_state, curr_action)] += 1
-                self.Q[curr_state][curr_action] = self.returns_sum[(curr_state, curr_action)] / self.returns_count[(curr_state, curr_action)]
+            state, action, reward = episode[t]
+            G = discount_factor * G + reward
+            if (state, action) not in state_action_pairs[:t]: # First-visit: only update if this pair doesn't appear earlier in the episode
+                self.returns_sum[(state, action)] += G
+                self.returns_count[(state, action)] += 1
+                self.Q[state][action] = self.returns_sum[(state, action)] / self.returns_count[(state, action)]
 
 
     def pull_updates(self):
@@ -204,7 +203,40 @@ class OffPolicyMC(MonteCarlo):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
-        
+
+        # Generate an episode
+        for i in range(self.options.steps):
+            probs = self.behavior_policy(state)
+            action = np.random.choice(np.arange(len(probs)), p=probs)
+            next_state, reward, done, _ = self.step(action)
+            episode.append((state, action, reward))
+            state = next_state
+            if done:
+                break
+
+        # Update Q-function
+        discount_factor = self.options.gamma
+        G = 0
+        W = 1
+
+        # Loop over each step in episode in reverse, t = T-1, T-2, ... 0
+        for t in range(len(episode) - 1, -1, -1):
+            state, action, reward = episode[t]
+            G = discount_factor * G + reward
+
+            # Weighted IS update (Sutton & Barto, Sec. 5.7)
+            self.C[state][action] += W
+            self.Q[state][action] += W/self.C[state][action] * (G - self.Q[state][action])
+            optimal_action = self.target_policy(state)
+
+            # If A_t isn't greedy, then W would be 0 for all earlier steps so we stop
+            if action != optimal_action:
+                break
+
+            # Importance-sampling ratio pi(A_t|S_t)/b(A_t|S_t)
+            # pi is deterministic, so pi(A_t|S_t) = 1 since A_t is greedy
+            W *= 1/self.behavior_policy(state)[action]
+
 
     def create_random_policy(self):
         """
