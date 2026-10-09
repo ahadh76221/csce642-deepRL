@@ -56,6 +56,20 @@ class QLearning(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+        gamma = self.options.gamma
+        alpha = self.options.alpha
+        for i in range(self.options.steps):
+            epsilon_greedy_action_probabilities = self.epsilon_greedy(state)
+            action = self.sample(epsilon_greedy_action_probabilities)
+            next_state, reward, done, _ = self.step(action)
+            if not done:
+                self.Q[state][action] += alpha * (reward + gamma * max(self.Q[next_state]) - self.Q[state][action])
+            else:
+                self.Q[state][action] += alpha * (reward - self.Q[state][action])
+                break
+
+            state = next_state
+
     def pull_updates(self):
         raise NotImplementedError
 
@@ -79,7 +93,7 @@ class QLearning(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            return -1
+            return np.argmax(self.Q[state])
 
         return policy_fn
 
@@ -100,6 +114,16 @@ class QLearning(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+
+        # Every action in the soft-policy is initialized as epsilon/nA;
+        # The greedy action gets the remaining 1 - epsilon on top (Sutton & Barto, Sec. 5.4)
+        epsilon = self.options.epsilon
+        optimal_action = np.argmax(self.Q[state])
+        action_space = self.env.action_space.n
+        action_probabilities = np.full(action_space, epsilon/action_space)
+        action_probabilities[optimal_action] += 1 - epsilon
+
+        return action_probabilities
 
 
 class ApproxQLearning(QLearning):
