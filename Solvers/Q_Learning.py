@@ -56,15 +56,21 @@ class QLearning(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+        # Single episode off-policy Q-Learning loop following (Sutton & Barto, Sec. 6.5)
         gamma = self.options.gamma
         alpha = self.options.alpha
+
         for i in range(self.options.steps):
+            # Choose A from S using the epsilon-greedy behavior policy
             epsilon_greedy_action_probabilities = self.epsilon_greedy(state)
             action = self.sample(epsilon_greedy_action_probabilities)
             next_state, reward, done, _ = self.step(action)
             if not done:
+                # Off-policy target: bootstrap from the greedy value max_a Q(S', a),
+                # regardless of which action the behavior policy takes next
                 self.Q[state][action] += alpha * (reward + gamma * max(self.Q[next_state]) - self.Q[state][action])
             else:
+                # Terminal state has value 0, so the target is just the reward
                 self.Q[state][action] += alpha * (reward - self.Q[state][action])
                 break
 
@@ -115,7 +121,7 @@ class QLearning(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
-        # Every action in the soft-policy is initialized as epsilon/nA;
+        # Every action gets a base probability of epsilon/number_of_actions;
         # The greedy action gets the remaining 1 - epsilon on top (Sutton & Barto, Sec. 5.4)
         epsilon = self.options.epsilon
         optimal_action = np.argmax(self.Q[state])

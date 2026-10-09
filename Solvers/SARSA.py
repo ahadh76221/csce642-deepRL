@@ -49,6 +49,33 @@ class Sarsa(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+        # Single episode on-policy SARSA loop following (Sutton & Barto, Sec. 6.4)
+        gamma = self.options.gamma
+        alpha = self.options.alpha
+
+        # Choose A from S using epsilon-greedy policy
+        epsilon_greedy_action_probabilities = self.epsilon_greedy(state)
+        action = self.sample(epsilon_greedy_action_probabilities)
+
+        for i in range(self.options.steps):
+            next_state, reward, done, _ = self.step(action)
+
+            # Choose A' from S' using epsilon-greedy policy
+            next_state_epsilon_greedy_action_probabilities = self.epsilon_greedy(next_state)
+            next_action = self.sample(next_state_epsilon_greedy_action_probabilities)
+
+            if not done:
+                # On-policy target: bootstrap from Q(S', A'), the action we will actually take next
+                self.Q[state][action] += alpha * (reward + gamma * self.Q[next_state][next_action] - self.Q[state][action])
+            else:
+                # Terminal state has value 0, so the target is just the reward
+                self.Q[state][action] += alpha * (reward - self.Q[state][action])
+                break
+
+            # S <- S', A <- A': carrying A' forward is what keeps the update on-policy
+            state = next_state
+            action = next_action
+
     def pull_updates(self):
         raise NotImplementedError
 
@@ -67,7 +94,7 @@ class Sarsa(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            return -1
+            return np.argmax(self.Q[state])
 
         return policy_fn
 
@@ -88,6 +115,16 @@ class Sarsa(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+
+        # Every action gets a base probability of epsilon/number_of_actions;
+        # The greedy action gets the remaining 1 - epsilon on top (Sutton & Barto, Sec. 5.4)
+        epsilon = self.options.epsilon
+        optimal_action = np.argmax(self.Q[state])
+        action_space = self.env.action_space.n
+        action_probabilities = np.full(action_space, epsilon/action_space)
+        action_probabilities[optimal_action] += 1 - epsilon
+
+        return action_probabilities
 
     def plot(self, stats, smoothing_window=20, final=False):
         plotting.plot_episode_stats(stats, smoothing_window, final=final)
