@@ -214,7 +214,30 @@ class DQN(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-            pass
+
+            # n_steps lives on the solver so it keeps counting across episodes (it is never reset)
+            self.n_steps += 1
+
+            # Choose an action from the epsilon-greedy behavior policy
+            epsilon_greedy_action_probabilities = self.epsilon_greedy(state)
+            action = self.sample(epsilon_greedy_action_probabilities)
+            # self.step also merges terminated/truncated into done and updates the episode statistics
+            next_state, reward, done, _ = self.step(action)
+            # Store the transition in the replay buffer
+            self.memorize(state, action, reward, next_state, done)
+            # One gradient update per environment step, on a random minibatch from the buffer
+            # (replay() does nothing until the buffer holds more than batch_size transitions)
+            self.replay()
+
+            # Sync the target network with the online network every N steps
+            if self.n_steps % self.options.update_target_estimator_every == 0:
+                self.update_target_model()
+
+            # Don't step the env again once the episode has ended
+            if done:
+                break
+
+            state = next_state
 
     def pull_updates(self):
         raise NotImplementedError
