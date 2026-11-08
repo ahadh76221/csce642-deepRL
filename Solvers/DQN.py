@@ -110,12 +110,12 @@ class DQN(AbstractSolver):
             # The env gives a numpy array; the network needs a float32 tensor
             state = torch.as_tensor(state, dtype=torch.float32)
             # Index of the action with the highest predicted Q-value
-            optimal_action = torch.argmax(self.model(state))
+            greedy_action = torch.argmax(self.model(state))
 
-        action_space = self.env.action_space.n
-        action_probabilities = np.full(action_space, epsilon/action_space)
+        n_actions = self.env.action_space.n
+        action_probabilities = np.full(n_actions, epsilon/n_actions)
         # Add the remaining probability mass to the greedy action so the probabilities sum to 1
-        action_probabilities[optimal_action] += 1 - epsilon
+        action_probabilities[greedy_action] += 1 - epsilon
 
         return action_probabilities
 
@@ -132,11 +132,11 @@ class DQN(AbstractSolver):
 
         # Q-values for every action in each next state, from the frozen target network: shape [batch_size, n_actions]
         # (the target network keeps the targets stable while the online network is being updated)
-        q_values = self.target_model(next_states)
+        next_q_values = self.target_model(next_states)
         # Q-learning target: r + gamma * max_a' Q_target(s', a')
         # torch.max(dim=1) returns (values, indices); [0] keeps the best Q-value per next state
         # (1 - dones) zeroes the bootstrap term for terminal transitions, leaving just the reward
-        target_values = rewards + self.options.gamma * torch.max(q_values, dim=1)[0] * (1 - dones)
+        target_values = rewards + self.options.gamma * torch.max(next_q_values, dim=1)[0] * (1 - dones)
 
         return target_values
 
