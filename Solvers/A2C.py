@@ -123,6 +123,7 @@ class A2C(AbstractSolver):
         """
 
         state, _ = self.env.reset()
+        gamma = self.options.gamma
         for _ in range(self.options.steps):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
@@ -130,7 +131,33 @@ class A2C(AbstractSolver):
             # only ONCE at EACH step in    #
             # an episode.                  # 
             ################################
-            pass
+
+            # Online one-step actor-critic (Sutton & Barto, Sec. 13.5). Sample A from the current
+            # policy; baseline is V(S) from the critic, kept as a tensor so the critic update
+            # can backpropagate through it
+            action, action_prob, baseline = self.select_action(state)
+            next_state, reward, done, _ = self.step(action)
+
+            # Bootstrap from the critic's estimate of V(S'). A terminal state has value 0,
+            # so skip the forward pass and the advantage reduces to R - V(S)
+            if done:
+                estimate = 0
+            else:
+                _, estimate = self.actor_critic(torch.as_tensor(next_state, dtype=torch.float32))
+
+            # The one-step TD error is the advantage estimate: R + gamma * V(S') - V(S).
+            # It is biased since it relies on the imperfect critic, but unlike REINFORCE
+            # it is available after every step, so we update once per step
+            advantage = reward + gamma * estimate - baseline
+
+            # Pass V(S): the critic update moves the value of the state we left
+            self.update_actor_critic(advantage, action_prob, baseline)
+
+            # Stop collecting once the episode terminates or is truncated
+            if done:
+                break
+
+            state = next_state
 
     def actor_loss(self, advantage, prob):
         """
@@ -152,6 +179,12 @@ class A2C(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################)
 
+        # Autodiff of A * log pi(a|s) gives the policy gradient A * grad log pi
+        # (Sutton & Barto, Sec. 13.5). The optimizer minimizes while policy gradient
+        # ascends, so negate it. The advantage arrives detached and the mean is taken
+        # by the caller (update_actor_critic)
+        return -(advantage * torch.log(prob))
+
     def critic_loss(self, advantage, value):
         """
         The integral of the critic gradient
@@ -166,6 +199,13 @@ class A2C(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+
+        # Semi-gradient TD (Sutton & Barto, Sec. 13.5). The critic update direction is
+        # delta * grad V(s). The advantage (delta) is detached so it acts as a constant,
+        # meaning only V(s) carries a gradient. Negate so that minimizing this surrogate
+        # moves V(s) along +delta * grad V(s). Its value is not a meaningful error
+        # measure, only its gradient matters
+        return -(advantage * value)
 
     def pull_updates(self):
         raise NotImplementedError
