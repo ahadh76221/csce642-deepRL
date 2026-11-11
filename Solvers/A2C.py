@@ -143,7 +143,11 @@ class A2C(AbstractSolver):
             if done:
                 estimate = 0
             else:
-                _, estimate = self.actor_critic(torch.as_tensor(next_state, dtype=torch.float32))
+                # V(S') only feeds the TD target, which semi-gradient TD treats as a constant,
+                # so skip building an autograd graph for it. update_actor_critic detaches the
+                # advantage anyway, so this saves work without changing the update
+                with torch.no_grad():
+                    _, estimate = self.actor_critic(torch.as_tensor(next_state, dtype=torch.float32))
 
             # The one-step TD error is the advantage estimate: R + gamma * V(S') - V(S).
             # It is biased since it relies on the imperfect critic, but unlike REINFORCE
