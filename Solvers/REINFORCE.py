@@ -77,6 +77,24 @@ class Reinforce(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+        # Discounted return-to-go via the backward recursion G_t = r_t + gamma * G_{t+1}
+        # (Sutton & Barto, Sec. 3.3). Walking from the last step to the first reuses G_{t+1}
+        # instead of re-summing the tail for every t, so it is O(T) rather than O(T^2)
+        returns = []
+
+        # The return after the final step is 0, so the last step's return is just its reward
+        running = 0
+
+        for reward in reversed(rewards):
+            running = reward + gamma * running
+            returns.append(running)
+
+        # Built from the end of the episode, so flip it to line up index-wise with
+        # action_probs and baselines (index t must be the return from step t)
+        returns.reverse()
+
+        return returns
+
     def select_action(self, state):
         """
         Selects an action given state.
@@ -138,7 +156,26 @@ class Reinforce(AbstractSolver):
             # Run update_model() only ONCE #
             # at the END of an episode.    #
             ################################
-            pass
+
+            # Single episode of REINFORCE with a baseline (Sutton & Barto, Sec. 13.4).
+            # Sample A from the current policy; keep its probability and the baseline value
+            # as tensors since update_model needs them attached to the autograd graph
+            action, action_prob, baseline = self.select_action(state)
+            next_state, reward, done, _ = self.step(action)
+            rewards.append(reward)
+            action_probs.append(action_prob)
+            baselines.append(baseline)
+
+            # Stop collecting once the episode terminates or is truncated
+            if done:
+                break
+
+            state = next_state
+
+        # Returns need the full episode (Monte Carlo) and the data is only valid for the
+        # policy that generated it (on-policy), so do one update after the loop. Placing it
+        # here also covers episodes that hit the step limit without ever reaching done
+        self.update_model(rewards, action_probs, baselines)
 
     def pg_loss(self, advantage, prob):
         """
@@ -160,6 +197,10 @@ class Reinforce(AbstractSolver):
         #   YOUR IMPLEMENTATION HERE   #
         ################################
 
+        # Autodiff of A_t * log pi(a_t|s_t) gives the policy gradient A_t * grad log pi
+        # (Sutton & Barto, Sec. 13.3). The optimizer minimizes, while policy gradient
+        # ascends, so negate it. The mean over steps is taken by the caller (update_model)
+        return -(advantage * torch.log(prob))
 
     def pull_updates(self):
         raise NotImplementedError
