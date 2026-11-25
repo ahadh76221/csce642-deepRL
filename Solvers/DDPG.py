@@ -151,9 +151,15 @@ class DDPG(AbstractSolver):
         Returns:
             The target q value (as a tensor).
         """
-        ################################
-        #   YOUR IMPLEMENTATION HERE   #
-        ################################
+        # With continuous actions we can't take DQN's max over a', so the target actor stands in
+        # for the argmax: mu_target(s') is the action it believes maximizes Q_target(s', .)
+        # (both networks are the frozen targets, keeping the regression target stable)
+        next_actions = self.target_actor_critic.pi(next_states)
+        # TD target: r + gamma * Q_target(s', mu_target(s')). The critic's output is already
+        # squeezed to shape [batch_size], so it lines up with rewards and dones elementwise.
+        # (1 - dones) zeroes the bootstrap term for terminal transitions, leaving just the reward
+        targets = rewards + self.options.gamma * (1 - dones) * self.target_actor_critic.q(next_states, next_actions)
+        return targets
 
 
     def replay(self):
@@ -217,10 +223,25 @@ class DDPG(AbstractSolver):
 
         state, _ = self.env.reset()
         for _ in range(self.options.steps):
-            ################################
-            #   YOUR IMPLEMENTATION HERE   #
-            ################################
-            pass
+            # mu(s) plus Gaussian noise, clipped to the action bounds. The deterministic actor
+            # would never explore on its own, so the noise supplies the exploration
+            action = self.select_action(state)
+            # self.step returns 4 values and already folds terminated/truncated into done
+            next_state, reward, done, _ = self.step(action)
+            # Store the transition. DDPG is off-policy, so the noisy action is still valid data
+            self.memorize(state, action, reward, next_state, done)
+            # One minibatch update of critic then actor per env step (no-op until the
+            # buffer holds more than batch_size transitions)
+            self.replay()
+            # Polyak-average the targets toward the online networks every step (tau = 0.995),
+            # replacing DQN's periodic hard copy, so no step counter is needed
+            self.update_target_networks()
+
+            # Stop collecting once the episode terminates or is truncated
+            if done:
+                break
+
+            state = next_state
 
     def q_loss(self, current_q, target_q):
         """
@@ -233,9 +254,10 @@ class DDPG(AbstractSolver):
         Returns:
             The unreduced loss (as a tensor).
         """
-        ################################
-        #   YOUR IMPLEMENTATION HERE   #
-        ################################
+        # Per-sample squared TD error (MSE before averaging). Left unreduced, shape [batch_size],
+        # because replay() takes the .mean() itself. target_q needs no detach since
+        # compute_target_values runs under no_grad
+        return (current_q - target_q)**2
 
     def pi_loss(self, states):
         """
@@ -255,9 +277,14 @@ class DDPG(AbstractSolver):
         Returns:
             The unreduced loss (as a tensor).
         """
-        ################################
-        #   YOUR IMPLEMENTATION HERE   #
-        ################################
+        # Score the online actor's proposed action, not the buffer action, so the gradient flows
+        # back through mu. The buffer actions came from an older, noisy policy
+        actions = self.actor_critic.pi(states)
+        # Deterministic policy gradient: maximize Q(s, mu(s)) by minimizing its negation.
+        # backward() also leaves gradients on the critic, but optimizer_pi only steps the
+        # actor's parameters, and replay() zeroes the critic's grads before its next update
+        return -self.actor_critic.q(states, actions)
+
 
     def pull_updates(self):
         raise NotImplementedError
